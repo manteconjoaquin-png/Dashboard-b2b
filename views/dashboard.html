@@ -1,0 +1,515 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f3f6f5">
+  <title>B2B Distro Dashboard | Milky Way</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #20302e;
+      --muted: #64736f;
+      --line: #dce5e1;
+      --green: #176b55;
+      --green-soft: #e5f1eb;
+      --canvas: #f3f6f5;
+      --gold: #d7a93e;
+    }
+
+    body {
+      min-width: 360px;
+      background: var(--canvas);
+      color: var(--ink);
+      font-family: "Aptos", "Segoe UI", sans-serif;
+    }
+
+    .topbar {
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.88);
+    }
+
+    .brand-mark {
+      display: inline-grid;
+      width: 2rem;
+      height: 2rem;
+      place-items: center;
+      border-radius: 7px;
+      background: var(--green);
+      color: #fff;
+      font-weight: 700;
+    }
+
+    .page-shell { max-width: 1600px; }
+    .eyebrow { color: var(--green); font-size: .73rem; font-weight: 700; text-transform: uppercase; }
+    .legal-note { max-width: 760px; color: var(--muted); font-size: .82rem; }
+    .section-heading { font-size: 1.02rem; font-weight: 700; }
+
+    .kpi-card, .panel {
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #fff;
+    }
+
+    .kpi-card { min-height: 122px; }
+    .kpi-label { color: var(--muted); font-size: .84rem; font-weight: 600; }
+    .kpi-value { margin-top: .45rem; color: var(--ink); font-size: 1.9rem; font-weight: 700; line-height: 1; }
+    .kpi-accent { width: 3px; flex: 0 0 3px; border-radius: 3px; background: var(--green); }
+    .kpi-accent.warning { background: var(--gold); }
+    .kpi-accent.danger { background: #c4514b; }
+    .panel-header { border-bottom: 1px solid var(--line); }
+
+    .form-label { margin-bottom: .3rem; color: #44534f; font-size: .82rem; font-weight: 600; }
+    .form-control, .form-select { border-color: #d5dfda; }
+    .form-control:focus, .form-select:focus { border-color: #67a48d; box-shadow: 0 0 0 .2rem rgba(23, 107, 85, .12); }
+    .btn-primary { --bs-btn-bg: var(--green); --bs-btn-border-color: var(--green); --bs-btn-hover-bg: #105842; --bs-btn-hover-border-color: #105842; --bs-btn-active-bg: #105842; }
+    .btn-outline-secondary { --bs-btn-color: #51615c; --bs-btn-border-color: #cbd6d1; }
+
+    .inventory-table { min-width: 1040px; font-size: .84rem; }
+    .inventory-table thead th { padding: .8rem .75rem; background: #f6f8f7; color: #596964; font-size: .72rem; font-weight: 700; white-space: nowrap; }
+    .inventory-table tbody td { padding: .75rem; vertical-align: middle; }
+    .cover-thumb { width: 42px; height: 56px; border: 1px solid var(--line); border-radius: 3px; background: #f3f6f5; object-fit: cover; }
+    .manga-title { min-width: 150px; max-width: 240px; color: var(--ink); font-weight: 600; }
+    .table-empty { padding: 3rem 1rem !important; color: var(--muted); text-align: center; }
+    .refresh-status { color: var(--muted); font-size: .8rem; }
+
+    @media (max-width: 575.98px) {
+      body { min-width: 320px; }
+      .page-shell { padding-right: 1rem !important; padding-left: 1rem !important; }
+      .kpi-value { font-size: 1.6rem; }
+    }
+  </style>
+</head>
+<body class="bg-light">
+  <nav class="topbar navbar py-3">
+    <div class="container-fluid page-shell px-4">
+      <a class="navbar-brand d-flex align-items-center gap-2 mb-0" href="/" aria-label="Milky Way B2B Dashboard">
+        <span class="brand-mark" aria-hidden="true">M</span>
+        <span class="fw-semibold">Milky Way <span class="text-secondary fw-normal">| Distribución B2B</span></span>
+      </a>
+      <span class="badge rounded-pill text-bg-light border text-secondary">Panel de inventario</span>
+    </div>
+  </nav>
+
+  <main class="container-fluid page-shell px-4 py-4 py-lg-5">
+    <header class="mb-4">
+      <p class="eyebrow mb-2">Operaciones · Editorial</p>
+      <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end gap-3">
+        <div>
+          <h1 class="h2 fw-bold mb-2">B2B Distro Dashboard</h1>
+          <p class="legal-note fst-italic mb-0">Caso de estudio estrictamente académico y demostrativo. Los inventarios y pedidos son simulados y no representan operaciones reales ni una relación comercial con Milky Way Ediciones.</p>
+        </div>
+        <button id="refresh-button" class="btn btn-outline-secondary btn-sm align-self-start align-self-md-auto" type="button">
+          <span class="me-1" aria-hidden="true">&#8635;</span> Actualizar datos
+        </button>
+      </div>
+    </header>
+
+    <div id="global-message" class="alert d-none" role="alert" aria-live="polite"></div>
+
+    <section aria-label="Indicadores globales" class="row g-3 mb-4">
+      <div class="col-12 col-md-4">
+        <article class="kpi-card shadow-sm p-3 d-flex gap-3 align-items-stretch">
+          <span class="kpi-accent" aria-hidden="true"></span>
+          <div>
+            <div class="kpi-label">Tasa de cumplimiento global</div>
+            <div class="kpi-value" id="kpi-fill-rate">--%</div>
+            <div class="small text-secondary mt-2">Unidades entregadas / solicitadas</div>
+          </div>
+        </article>
+      </div>
+      <div class="col-12 col-md-4">
+        <article class="kpi-card shadow-sm p-3 d-flex gap-3 align-items-stretch">
+          <span class="kpi-accent danger" aria-hidden="true"></span>
+          <div>
+            <div class="kpi-label">Alertas de reorden</div>
+            <div class="kpi-value" id="kpi-reorder-alerts">--</div>
+            <div class="small text-secondary mt-2">Mangas en stock crítico</div>
+          </div>
+        </article>
+      </div>
+      <div class="col-12 col-md-4">
+        <article class="kpi-card shadow-sm p-3 d-flex gap-3 align-items-stretch">
+          <span class="kpi-accent warning" aria-hidden="true"></span>
+          <div>
+            <div class="kpi-label">Productos en stock obsoleto</div>
+            <div class="kpi-value" id="kpi-obsolete">--</div>
+            <div class="small text-secondary mt-2">Clasificados como movimiento lento</div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <div class="row g-4 align-items-start">
+      <aside class="col-12 col-lg-4">
+        <section class="panel shadow-sm mb-4" aria-labelledby="add-manga-heading">
+          <div class="panel-header px-3 py-3">
+            <h2 class="section-heading mb-0" id="add-manga-heading">Añadir manga</h2>
+          </div>
+          <form id="manga-form" class="p-3" novalidate>
+            <div class="row g-3">
+              <div class="col-12">
+                <label class="form-label" for="mal-id">ID de Jikan (MAL)</label>
+                <input class="form-control" id="mal-id" name="mal_id" type="number" min="1" step="1" required>
+              </div>
+              <div class="col-12">
+                <label class="form-label" for="fallback-title">Título de respaldo</label>
+                <input class="form-control" id="fallback-title" name="title" type="text" placeholder="Se usa si Jikan no responde">
+              </div>
+              <div class="col-12">
+                <label class="form-label" for="fallback-image">URL de portada de respaldo</label>
+                <input class="form-control" id="fallback-image" name="image_url" type="url" placeholder="https://...">
+              </div>
+              <div class="col-6">
+                <label class="form-label" for="stock-actual">Stock actual</label>
+                <input class="form-control" id="stock-actual" name="stock_actual" type="number" min="0" step="1" value="0" required>
+              </div>
+              <div class="col-6">
+                <label class="form-label" for="lead-time">Lead time (días)</label>
+                <input class="form-control" id="lead-time" name="lead_time_days" type="number" min="0" step="1" value="0" required>
+              </div>
+              <div class="col-6">
+                <label class="form-label" for="cost">Coste</label>
+                <input class="form-control" id="cost" name="cost" type="number" min="0" step="0.01" required>
+              </div>
+              <div class="col-6">
+                <label class="form-label" for="price-b2b">Precio B2B</label>
+                <input class="form-control" id="price-b2b" name="price_b2b" type="number" min="0" step="0.01" required>
+              </div>
+              <div class="col-12">
+                <label class="form-label" for="daily-demand">Demanda diaria promedio</label>
+                <input class="form-control" id="daily-demand" name="demanda_diaria_promedio" type="number" min="0" step="0.01" value="0" required>
+              </div>
+              <div class="col-12">
+                <button class="btn btn-primary w-100" type="submit">Añadir al inventario</button>
+              </div>
+            </div>
+          </form>
+        </section>
+
+        <section class="panel shadow-sm" aria-labelledby="add-order-heading">
+          <div class="panel-header px-3 py-3">
+            <h2 class="section-heading mb-0" id="add-order-heading">Registrar pedido B2B</h2>
+          </div>
+          <form id="order-form" class="p-3" novalidate>
+            <div class="row g-3">
+              <div class="col-12">
+                <label class="form-label" for="order-manga">Manga</label>
+                <select class="form-select" id="order-manga" name="manga_id" required>
+                  <option value="">Añade un manga primero</option>
+                </select>
+              </div>
+              <div class="col-12">
+                <label class="form-label" for="client-name">Cliente B2B</label>
+                <input class="form-control" id="client-name" name="client_name" type="text" placeholder="Fnac, Casa del Libro..." required>
+              </div>
+              <div class="col-6">
+                <label class="form-label" for="quantity-requested">Unidades solicitadas</label>
+                <input class="form-control" id="quantity-requested" name="quantity_requested" type="number" min="1" step="1" required>
+              </div>
+              <div class="col-6">
+                <label class="form-label" for="quantity-delivered">Unidades entregadas</label>
+                <input class="form-control" id="quantity-delivered" name="quantity_delivered" type="number" min="0" step="1" value="0" required>
+              </div>
+              <div class="col-12">
+                <button class="btn btn-primary w-100" id="order-submit" type="submit" disabled>Registrar pedido</button>
+              </div>
+            </div>
+          </form>
+        </section>
+      </aside>
+
+      <section class="col-12 col-lg-8" aria-labelledby="inventory-heading">
+        <div class="panel shadow-sm">
+          <div class="panel-header px-3 py-3 d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-1">
+            <div>
+              <h2 class="section-heading mb-0" id="inventory-heading">Control de inventario</h2>
+              <span class="small text-secondary" id="inventory-count">Cargando inventario...</span>
+            </div>
+            <span class="refresh-status" id="last-updated" aria-live="polite"></span>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-hover mb-0 inventory-table">
+              <thead>
+                <tr>
+                  <th scope="col">Portada</th>
+                  <th scope="col">Título</th>
+                  <th scope="col">Stock actual</th>
+                  <th scope="col">Coste</th>
+                  <th scope="col">Precio B2B</th>
+                  <th scope="col">Rotación anual</th>
+                  <th scope="col">Días disponibles</th>
+                  <th scope="col">ROP</th>
+                  <th scope="col">Safety stock</th>
+                  <th scope="col">Estado de movimiento</th>
+                </tr>
+              </thead>
+              <tbody id="inventory-body">
+                <tr><td class="table-empty" colspan="10">Cargando datos de inventario...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    "use strict";
+
+    const API_BASE = "/api/inventory";
+    const numberFormat = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 2 });
+    const currencyFormat = new Intl.NumberFormat("es-ES", {
+      style: "currency",
+      currency: "EUR",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+
+    const elements = {
+      message: document.getElementById("global-message"),
+      fillRate: document.getElementById("kpi-fill-rate"),
+      reorderAlerts: document.getElementById("kpi-reorder-alerts"),
+      obsolete: document.getElementById("kpi-obsolete"),
+      inventoryBody: document.getElementById("inventory-body"),
+      inventoryCount: document.getElementById("inventory-count"),
+      lastUpdated: document.getElementById("last-updated"),
+      mangaForm: document.getElementById("manga-form"),
+      orderForm: document.getElementById("order-form"),
+      mangaSelect: document.getElementById("order-manga"),
+      orderSubmit: document.getElementById("order-submit"),
+      refreshButton: document.getElementById("refresh-button")
+    };
+
+    function showMessage(message, type) {
+      elements.message.textContent = message;
+      elements.message.className = `alert alert-${type}`;
+      elements.message.classList.remove("d-none");
+    }
+
+    function clearMessage() {
+      elements.message.textContent = "";
+      elements.message.className = "alert d-none";
+    }
+
+    async function readResponse(response) {
+      const body = await response.json().catch(() => null);
+      if (!response.ok) {
+        const detail = body && body.detail;
+        const message = Array.isArray(detail)
+          ? detail.map((item) => item.msg || "Dato no válido").join("; ")
+          : (typeof detail === "string" ? detail : `Error del servidor (${response.status})`);
+        throw new Error(message);
+      }
+      return body;
+    }
+
+    function formatNumber(value) {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? numberFormat.format(parsed) : "—";
+    }
+
+    function formatCurrency(value) {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? currencyFormat.format(parsed) : "—";
+    }
+
+    function stateBadgeClass(state) {
+      if (state === "Stock Crítico") return "badge bg-danger";
+      if (state === "Movimiento Lento") return "badge bg-warning text-dark";
+      if (state === "Óptimo") return "badge bg-success";
+      return "badge bg-secondary";
+    }
+
+    function createCell(text, className) {
+      const cell = document.createElement("td");
+      cell.textContent = text;
+      if (className) cell.className = className;
+      return cell;
+    }
+
+    function renderInventory(mangas) {
+      elements.inventoryBody.replaceChildren();
+      elements.inventoryCount.textContent = `${mangas.length} ${mangas.length === 1 ? "producto" : "productos"}`;
+      updateMangaOptions(mangas);
+
+      if (mangas.length === 0) {
+        const row = document.createElement("tr");
+        const cell = document.createElement("td");
+        cell.colSpan = 10;
+        cell.className = "table-empty";
+        cell.textContent = "Todavía no hay mangas en el inventario.";
+        row.append(cell);
+        elements.inventoryBody.append(row);
+        return;
+      }
+
+      const rows = mangas.map((manga) => {
+        const row = document.createElement("tr");
+        const coverCell = document.createElement("td");
+        const cover = document.createElement("img");
+        cover.className = "cover-thumb";
+        cover.loading = "lazy";
+        cover.alt = `Portada de ${manga.title}`;
+        cover.src = manga.image_url;
+        cover.addEventListener("error", () => {
+          cover.removeAttribute("src");
+          cover.alt = "Portada no disponible";
+        }, { once: true });
+        coverCell.append(cover);
+
+        row.append(
+          coverCell,
+          createCell(manga.title, "manga-title"),
+          createCell(formatNumber(manga.stock_actual)),
+          createCell(formatCurrency(manga.cost)),
+          createCell(formatCurrency(manga.price_b2b)),
+          createCell(formatNumber(manga.rotacion_inventario)),
+          createCell(formatNumber(manga.dias_inventario)),
+          createCell(formatNumber(manga.reorder_point)),
+          createCell(formatNumber(manga.safety_stock))
+        );
+
+        const stateCell = document.createElement("td");
+        const badge = document.createElement("span");
+        badge.className = stateBadgeClass(manga.estado_movimiento);
+        badge.textContent = manga.estado_movimiento || "Sin estado";
+        stateCell.append(badge);
+        row.append(stateCell);
+        return row;
+      });
+      elements.inventoryBody.append(...rows);
+    }
+
+    function updateMangaOptions(mangas) {
+      const previousValue = elements.mangaSelect.value;
+      elements.mangaSelect.replaceChildren();
+      const placeholder = document.createElement("option");
+      placeholder.value = "";
+      placeholder.textContent = mangas.length ? "Selecciona un manga" : "Añade un manga primero";
+      elements.mangaSelect.append(placeholder);
+
+      for (const manga of mangas) {
+        const option = document.createElement("option");
+        option.value = String(manga.id);
+        option.textContent = `${manga.title} (ID ${manga.id})`;
+        elements.mangaSelect.append(option);
+      }
+      if (mangas.some((manga) => String(manga.id) === previousValue)) {
+        elements.mangaSelect.value = previousValue;
+      }
+      elements.orderSubmit.disabled = mangas.length === 0;
+    }
+
+    async function fetchDashboardData() {
+      elements.refreshButton.disabled = true;
+      try {
+        const response = await fetch(`${API_BASE}/dashboard`, {
+          headers: { Accept: "application/json" }
+        });
+        const data = await readResponse(response);
+        const summary = data.summary || {};
+        elements.fillRate.textContent = `${formatNumber(summary.fill_rate_global)}%`;
+        elements.reorderAlerts.textContent = formatNumber(summary.total_alertas_reorden);
+        elements.obsolete.textContent = formatNumber(summary.total_productos_obsoletos);
+        renderInventory(Array.isArray(data.mangas) ? data.mangas : []);
+        elements.lastUpdated.textContent = `Actualizado ${new Date().toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}`;
+        clearMessage();
+      } catch (error) {
+        showMessage(`No se pudo cargar el inventario: ${error.message}`, "danger");
+        elements.inventoryCount.textContent = "No se pudo cargar el inventario";
+        elements.inventoryBody.replaceChildren();
+        const row = document.createElement("tr");
+        const cell = document.createElement("td");
+        cell.colSpan = 10;
+        cell.className = "table-empty";
+        cell.textContent = "Comprueba la conexión e inténtalo de nuevo.";
+        row.append(cell);
+        elements.inventoryBody.append(row);
+      } finally {
+        elements.refreshButton.disabled = false;
+      }
+    }
+
+    elements.mangaForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      clearMessage();
+      if (!elements.mangaForm.reportValidity()) return;
+
+      const form = new FormData(elements.mangaForm);
+      const malId = Number(form.get("mal_id"));
+      const payload = {
+        mal_id: malId,
+        title: String(form.get("title")).trim() || `Manga MAL #${malId}`,
+        image_url: String(form.get("image_url")).trim() || "https://placehold.co/300x420?text=Portada",
+        stock_actual: Number(form.get("stock_actual")),
+        cost: String(form.get("cost")),
+        price_b2b: String(form.get("price_b2b")),
+        lead_time_days: Number(form.get("lead_time_days")),
+        demanda_diaria_promedio: String(form.get("demanda_diaria_promedio"))
+      };
+
+      const submitButton = elements.mangaForm.querySelector("button[type='submit']");
+      submitButton.disabled = true;
+      submitButton.textContent = "Añadiendo...";
+      try {
+        const response = await fetch(`${API_BASE}/manga`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify(payload)
+        });
+        await readResponse(response);
+        elements.mangaForm.reset();
+        showMessage("Manga añadido correctamente al inventario.", "success");
+        await fetchDashboardData();
+      } catch (error) {
+        showMessage(`No se pudo añadir el manga: ${error.message}`, "danger");
+      } finally {
+        submitButton.disabled = false;
+        submitButton.textContent = "Añadir al inventario";
+      }
+    });
+
+    elements.orderForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      clearMessage();
+      if (!elements.orderForm.reportValidity()) return;
+
+      const form = new FormData(elements.orderForm);
+      const payload = {
+        manga_id: Number(form.get("manga_id")),
+        client_name: String(form.get("client_name")).trim(),
+        quantity_requested: Number(form.get("quantity_requested")),
+        quantity_delivered: Number(form.get("quantity_delivered"))
+      };
+      if (payload.quantity_delivered > payload.quantity_requested) {
+        showMessage("Las unidades entregadas no pueden superar las solicitadas.", "warning");
+        return;
+      }
+
+      elements.orderSubmit.disabled = true;
+      elements.orderSubmit.textContent = "Registrando...";
+      try {
+        const response = await fetch(`${API_BASE}/order`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify(payload)
+        });
+        await readResponse(response);
+        elements.orderForm.reset();
+        showMessage("Pedido B2B registrado correctamente.", "success");
+        await fetchDashboardData();
+      } catch (error) {
+        showMessage(`No se pudo registrar el pedido: ${error.message}`, "danger");
+      } finally {
+        elements.orderSubmit.disabled = elements.mangaSelect.options.length <= 1;
+        elements.orderSubmit.textContent = "Registrar pedido";
+      }
+    });
+
+    elements.refreshButton.addEventListener("click", fetchDashboardData);
+    fetchDashboardData();
+  </script>
+</body>
+</html>
