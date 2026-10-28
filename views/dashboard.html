@@ -352,11 +352,9 @@
         cover.className = "cover-thumb";
         cover.loading = "lazy";
         cover.alt = `Portada de ${manga.title}`;
+        cover.setAttribute("onerror", "this.onerror=null; this.src='https://placehold.co';");
+        cover.setAttribute("style", "width: 50px; height: 70px; object-fit: cover;");
         cover.src = manga.image_url;
-        cover.addEventListener("error", () => {
-          cover.removeAttribute("src");
-          cover.alt = "Portada no disponible";
-        }, { once: true });
         coverCell.append(cover);
 
         row.append(
