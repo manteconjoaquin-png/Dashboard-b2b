@@ -69,6 +69,9 @@
     .inventory-table { min-width: 1040px; font-size: .84rem; }
     .inventory-table thead th { padding: .8rem .75rem; background: #f6f8f7; color: #596964; font-size: .72rem; font-weight: 700; white-space: nowrap; }
     .inventory-table tbody td { padding: .75rem; vertical-align: middle; }
+    .orders-table { min-width: 760px; font-size: .86rem; }
+    .orders-table thead th { padding: .8rem .75rem; background: #f6f8f7; color: #596964; font-size: .72rem; font-weight: 700; white-space: nowrap; }
+    .orders-table tbody td { padding: .75rem; vertical-align: middle; }
     .cover-thumb { width: 42px; height: 56px; border: 1px solid var(--line); border-radius: 3px; background: #f3f6f5; object-fit: cover; }
     .manga-title { min-width: 150px; max-width: 240px; color: var(--ink); font-weight: 600; }
     .table-empty { padding: 3rem 1rem !important; color: var(--muted); text-align: center; }
@@ -253,6 +256,32 @@
         </div>
       </section>
     </div>
+
+    <section class="mt-4" aria-labelledby="orders-heading">
+      <div class="panel shadow-sm">
+        <div class="panel-header px-3 py-3">
+          <h2 class="section-heading mb-0" id="orders-heading">📋 Historial de Pedidos B2B y Suministro</h2>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-hover mb-0 orders-table">
+            <thead>
+              <tr>
+                <th scope="col">ID Pedido</th>
+                <th scope="col">Manga</th>
+                <th scope="col">Cliente B2B</th>
+                <th scope="col">Cantidad Pedida</th>
+                <th scope="col">Cantidad Entregada</th>
+                <th scope="col">Pendiente (Backorder)</th>
+                <th scope="col">Estado</th>
+              </tr>
+            </thead>
+            <tbody id="orders-body">
+              <tr><td class="table-empty" colspan="7">Cargando pedidos...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
   </main>
 
   <script>
@@ -273,6 +302,7 @@
       reorderAlerts: document.getElementById("kpi-reorder-alerts"),
       obsolete: document.getElementById("kpi-obsolete"),
       inventoryBody: document.getElementById("inventory-body"),
+      ordersBody: document.getElementById("orders-body"),
       inventoryCount: document.getElementById("inventory-count"),
       lastUpdated: document.getElementById("last-updated"),
       mangaForm: document.getElementById("manga-form"),
@@ -380,6 +410,47 @@
       elements.inventoryBody.append(...rows);
     }
 
+    function renderOrders(orders) {
+      elements.ordersBody.replaceChildren();
+      if (orders.length === 0) {
+        const row = document.createElement("tr");
+        const cell = document.createElement("td");
+        cell.colSpan = 7;
+        cell.className = "table-empty";
+        cell.textContent = "Todavía no hay pedidos registrados.";
+        row.append(cell);
+        elements.ordersBody.append(row);
+        return;
+      }
+
+      const rows = orders.map((order) => {
+        const pending = Number(order.unidades_pendientes) || 0;
+        const row = document.createElement("tr");
+        row.append(
+          createCell(`#${order.id}`),
+          createCell(order.manga || "Manga sin título", "manga-title"),
+          createCell(order.cliente || "—"),
+          createCell(formatNumber(order.solicitado)),
+          createCell(formatNumber(order.entregado))
+        );
+
+        const pendingCell = document.createElement("td");
+        const pendingAmount = document.createElement("strong");
+        pendingAmount.textContent = formatNumber(pending);
+        pendingCell.append(pendingAmount);
+        row.append(pendingCell);
+
+        const statusCell = document.createElement("td");
+        const badge = document.createElement("span");
+        badge.className = pending > 0 ? "badge bg-warning text-dark" : "badge bg-success";
+        badge.textContent = pending > 0 ? `Pendiente (${formatNumber(pending)} tomos)` : "Completado";
+        statusCell.append(badge);
+        row.append(statusCell);
+        return row;
+      });
+      elements.ordersBody.append(...rows);
+    }
+
     function updateMangaOptions(mangas) {
       const previousValue = elements.mangaSelect.value;
       elements.mangaSelect.replaceChildren();
@@ -412,6 +483,7 @@
         elements.reorderAlerts.textContent = formatNumber(summary.total_alertas_reorden);
         elements.obsolete.textContent = formatNumber(summary.total_productos_obsoletos);
         renderInventory(Array.isArray(data.mangas) ? data.mangas : []);
+        renderOrders(Array.isArray(data.orders) ? data.orders : []);
         elements.lastUpdated.textContent = `Actualizado ${new Date().toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}`;
         clearMessage();
       } catch (error) {

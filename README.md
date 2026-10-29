@@ -1,95 +1,94 @@
 > [!WARNING]
-> Este proyecto es un caso de estudio estrictamente académico, educativo y demostrativo desarrollado con datos, inventarios y pedidos 100% simulados. No guarda ninguna relación comercial, oficial, operativa ni contractual con la empresa Milky Way Ediciones ni ninguna de sus filiales
+> Este proyecto es un caso de estudio estrictamente académico, educativo y demostrativo. Utiliza datos, inventarios y pedidos 100 % simulados. No guarda ninguna relación comercial, oficial, operativa ni contractual con Milky Way Ediciones ni con sus filiales.
 
 # Dashboard de Inventario B2B
 
-## Descripción
+Dashboard de gestión logística B2B para la distribución de mangas a librerías. El sistema organiza el catálogo, las existencias, los costes, los precios mayoristas, los plazos de reposición y los pedidos de clientes.
 
-Dashboard de gestión logística B2B orientado a la distribución de mangas a librerías. El sistema organiza el catálogo, las existencias, los costes, los precios mayoristas, los plazos de reposición y los pedidos de clientes.
+## 📊 Descripción
 
-El análisis de inventario contempla indicadores de cadena de suministro como:
+El análisis de inventario contempla indicadores críticos de la cadena de suministro, calculados dinámicamente:
 
-- **Rotación de inventario:** relación entre el consumo o las ventas del periodo y el inventario medio.
-- **Días de inventario:** estimación de cuántos días puede cubrir el stock actual según la demanda diaria promedio.
-- **Fill Rate:** proporción de las unidades solicitadas que se sirven.
-- **Stock de seguridad:** unidades de reserva para amortiguar variaciones de demanda o reposición.
-- **Punto de reorden:** nivel de existencias a partir del cual conviene reponer.
+- **🔄 Rotación de inventario:** relación anualizada entre el ritmo de consumo o la demanda proyectada y las existencias actuales en almacén.
+- **📅 Días de inventario:** estimación de cuántos días operativos puede cubrir el stock actual según la demanda diaria promedio antes de sufrir una rotura de stock.
+- **📈 Fill Rate:** proporción de las unidades solicitadas por clientes mayoristas que la editorial puede servir de forma inmediata.
+- **🛡️ Stock de seguridad:** unidades de reserva para amortiguar retrasos en los plazos de imprenta o picos inesperados de demanda.
+- **🚨 Punto de reorden (ROP):** nivel crítico de existencias a partir del cual el sistema activa una alerta visual para solicitar una nueva tirada.
 
-La API pública de **Jikan**, que proporciona datos de MyAnimeList, sirve como fuente de apoyo para información del catálogo, como identificadores, títulos e imágenes. Los datos comerciales, inventarios y pedidos de este caso de estudio son simulados; no representan operaciones reales.
+La API pública de **Jikan**, que proporciona datos de MyAnimeList, enriquece la información del catálogo con títulos e imágenes de portada. La integración incluye tolerancia a fallos y semillas locales de contingencia. Los datos comerciales, inventarios y pedidos de este caso de estudio son simulados y no representan operaciones reales.
 
-## Arquitectura
+### 📦 Historial de Pedidos B2B y Suministro
 
-El proyecto sigue una separación por responsabilidades de estilo MVC:
+El Dashboard ofrece un historial de pedidos ordenado por fecha y un seguimiento visual de los **Backorders**: unidades que siguen pendientes de stock después de una entrega parcial. Los badges verdes identifican los pedidos completados y los naranjas destacan las unidades pendientes para facilitar su seguimiento por parte de la editorial.
 
-- **Modelo:** SQLAlchemy define las entidades relacionales `Manga` y `B2BOrder`, así como su relación y cascada de borrado.
-- **Esquemas:** Pydantic v2 valida datos de entrada y salida, incluidos importes y métricas representados con `Decimal` en los esquemas.
-- **Controlador/API:** FastAPI expone los endpoints y coordina las operaciones entre los modelos, la lógica de negocio y las respuestas.
-- **Persistencia:** SQLite almacena los datos localmente mediante SQLAlchemy. Los importes `cost` y `price_b2b` usan `Numeric(10, 2)` para conservar precisión monetaria decimal.
-- **Datos de catálogo:** Jikan se consume como fuente pública complementaria; sus datos no sustituyen la información operativa simulada del inventario.
+## 🏗️ Arquitectura
 
-Estructura actual de los módulos principales:
+El proyecto separa responsabilidades siguiendo el patrón MVC:
+
+- **🗄️ Modelo:** SQLAlchemy define las entidades relacionales `Manga` y `B2BOrder`, sus claves foráneas y la eliminación en cascada (`ON DELETE CASCADE`).
+- **✅ Esquemas:** Pydantic v2 valida los datos de entrada y salida. Los importes y métricas usan `Decimal` para conservar precisión y se validan para impedir valores negativos o no finitos (`NaN`).
+- **⚙️ Controlador y API:** FastAPI expone los endpoints y coordina las operaciones de inventario, las consultas externas y las agregaciones de base de datos.
+- **📦 Pedidos y backorders:** `/api/inventory/dashboard` devuelve el historial completo en orden descendente por fecha y calcula las unidades pendientes de cada entrega parcial.
+- **🖥️ Vista:** interfaz responsiva con Bootstrap 5 y JavaScript asíncrono (`fetch`). Presenta KPIs, formularios y estados de suministro con badges verdes para pedidos completados y naranjas para backorders.
+- **💾 Persistencia:** SQLite almacena los datos localmente mediante SQLAlchemy. Los campos `cost` y `price_b2b` usan `Numeric(10, 2)` para conservar precisión monetaria.
+- **🌐 Catálogo:** Jikan es una fuente pública complementaria; sus datos no sustituyen la información operativa simulada del inventario.
+
+### 🗂️ Estructura del proyecto
 
 ```text
 .
 ├── config/
 │   └── database.py
+├── controllers/
+│   └── inventory_controller.py
 ├── models/
 │   ├── db_models.py
 │   └── schemas.py
-├── requirements.txt
-└── README.md
+├── views/
+│   └── dashboard.html
+├── .gitignore
+├── inventory.db
+├── main.py
+├── README.md
+└── requirements.txt
 ```
 
-La configuración local apunta a `sqlite:///./inventory.db`. Para crear automáticamente las tablas al iniciar la aplicación, el punto de entrada debe importar los modelos y ejecutar `Base.metadata.create_all(bind=engine)` durante la inicialización de FastAPI.
+La configuración local utiliza `sqlite:///./inventory.db`. Durante el primer arranque del servidor se inicializan las tablas relacionales y el archivo de base de datos mediante `Base.metadata.create_all(bind=engine)`.
 
-## Guía de Despliegue Local
+## 🚀 Guía de despliegue local
 
-### Requisitos
+### 📋 Requisitos
 
-- Python 3.10 o posterior.
-- `pip`.
+- Python 3.10 o posterior; el proyecto también está preparado para entornos Python 3.14.
+- Gestor de paquetes `pip`.
 - Windows PowerShell, macOS o Linux.
 
-### Instalación
+### 📥 Instalación
 
-Desde la raíz del proyecto, crea el entorno virtual si aún no existe y actívalo.
+Desde la raíz del proyecto, activa el entorno virtual `.venv`.
 
-**Windows PowerShell:**
+**Windows PowerShell**
 
 ```powershell
-py -m venv .venv
 .venv\Scripts\Activate.ps1
 ```
 
-**macOS o Linux:**
+**macOS o Linux**
 
 ```bash
-python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-Instala las dependencias:
+Instala las dependencias desde el archivo `requirements.txt`:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### Inicio del servidor
+### ▶️ Inicio del servidor
 
-Desde la raíz del proyecto, inicia FastAPI en modo desarrollo:
-
-```bash
-fastapi dev main.py
-```
-
-Como alternativa, inicia Uvicorn directamente:
+El servidor se inicia en el puerto `8080` para reducir conflictos con otros servicios locales. Desde la raíz del proyecto, ejecuta FastAPI en modo desarrollo con Uvicorn:
 
 ```bash
-python -m uvicorn main:app --reload
+python -m uvicorn main:app --reload --port 8080
 ```
-
-Ambos comandos presuponen que existe `main.py` y que contiene una instancia de FastAPI llamada `app`. En la estructura actual del repositorio ese archivo todavía no está incluido, por lo que debe añadirse antes de poder ejecutar el servidor con estos comandos.
-
-### Base de datos local
-
-La primera conexión a `sqlite:///./inventory.db` crea el archivo `inventory.db` en el directorio desde el que se inicia la aplicación, si todavía no existe. Para que las tablas se creen también automáticamente en el primer arranque, `main.py` debe importar `Base`, `engine` y los modelos, y ejecutar `Base.metadata.create_all(bind=engine)`. Sin esa inicialización, SQLite puede crear el archivo al conectarse, pero las tablas no se generan por sí solas.

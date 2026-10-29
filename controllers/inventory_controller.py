@@ -1,3 +1,4 @@
+from datetime import datetime
 from decimal import Decimal
 from typing import Generator
 
@@ -35,9 +36,21 @@ class B2BOrderCreate(BaseModel):
     quantity_delivered: int = Field(default=0, ge=0)
 
 
+class DashboardOrderResponse(BaseModel):
+    id: int
+    manga: str
+    cliente: str
+    solicitado: int
+    entregado: int
+    fecha: datetime
+    unidades_pendientes: int
+    estado: str
+
+
 class DashboardResponse(BaseModel):
     mangas: list[MangaInventoryResponse]
     summary: DashboardSummary
+    orders: list[DashboardOrderResponse]
 
 
 @router.post("/manga", response_model=MangaInventoryResponse, status_code=status.HTTP_201_CREATED)
@@ -162,6 +175,29 @@ def register_order(
 def get_dashboard(db: Session = Depends(get_db)) -> DashboardResponse:
     mangas = db.query(Manga).options(joinedload(Manga.orders)).all()
     inventory = [_inventory_response(manga, manga.orders) for manga in mangas]
+    orders = (
+        db.query(B2BOrder)
+        .options(joinedload(B2BOrder.manga))
+        .order_by(B2BOrder.created_at.desc())
+        .all()
+    )
+    order_responses = [
+        DashboardOrderResponse(
+            id=order.id,
+            manga=order.manga.title,
+            cliente=order.client_name,
+            solicitado=order.quantity_requested,
+            entregado=order.quantity_delivered,
+            fecha=order.created_at,
+            unidades_pendientes=order.quantity_requested - order.quantity_delivered,
+            estado=(
+                "Pendiente de Stock"
+                if order.quantity_requested - order.quantity_delivered > 0
+                else "Completado"
+            ),
+        )
+        for order in orders
+    ]
 
     requested_total = sum(
         (order.quantity_requested for manga in mangas for order in manga.orders),
@@ -186,7 +222,7 @@ def get_dashboard(db: Session = Depends(get_db)) -> DashboardResponse:
             item.estado_movimiento == "Stock Crítico" for item in inventory
         ),
     )
-    return DashboardResponse(mangas=inventory, summary=summary)
+    return DashboardResponse(mangas=inventory, summary=summary, orders=order_responses)
 
 
 def _inventory_response(manga: Manga, orders: list[B2BOrder]) -> MangaInventoryResponse:
