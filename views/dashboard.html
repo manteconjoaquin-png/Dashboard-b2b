@@ -16,12 +16,12 @@
       --surface: #ffffff;
       --surface-raised: #f7f5f0;
       --surface-soft: #faf8f4;
-      --line: #e5e0d8;
+      --line: #ebdcb9;
       --ink: #1e293b;
       --muted: #72777f;
       --muted-strong: #535b67;
-      --accent: #1e40af;
-      --accent-hover: #2563eb;
+      --accent: #2563eb;
+      --accent-hover: #1e40af;
       --gold: #a78852;
       --sage: #718b73;
       --shadow: 0 4px 16px rgba(65, 53, 33, .045);
@@ -29,7 +29,8 @@
       --bs-body-bg: var(--canvas);
       --bs-secondary-color: var(--muted);
       --bs-border-color: var(--line);
-      --bs-danger-rgb: 166, 82, 77;
+      --bs-primary-rgb: 37, 99, 235;
+      --bs-danger-rgb: 191, 107, 35;
       --bs-warning-rgb: 167, 136, 82;
       --bs-success-rgb: 113, 139, 115;
     }
@@ -41,12 +42,12 @@
       min-height: 100vh;
       background-color: #fdfbf7;
       background-image:
-        /* Círculo Mágico Superior Derecho */
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Ccircle cx='100' cy='100' r='80' stroke='%23e2d8c3' stroke-width='1' fill='none' stroke-dasharray='4 2'/%3E%3Ccircle cx='100' cy='100' r='65' stroke='%23e2d8c3' stroke-width='0.5' fill='none'/%3E%3Cpolygon points='100,20 35,130 165,130' stroke='%23e2d8c3' stroke-width='0.5' fill='none'/%3E%3Cpolygon points='100,180 35,70 165,70' stroke='%23e2d8c3' stroke-width='0.5' fill='none'/%3E%3C/svg%3E"),
-        /* Círculo Mágico Inferior Izquierdo */
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Ccircle cx='100' cy='100' r='75' stroke='%23e2d8c3' stroke-width='0.8' fill='none'/%3E%3Ccircle cx='100' cy='100' r='55' stroke='%23e2d8c3' stroke-width='0.5' fill='none' stroke-dasharray='1 3'/%3E%3Cpath d='M100,25 L100,175 M25,100 L175,100' stroke='%23e2d8c3' stroke-width='0.4'/%3E%3C/svg%3E");
-      background-position: right -50px top -50px, left -60px bottom -60px;
-      background-size: 450px 450px, 350px 350px;
+        /* Círculo Mágico Superior Derecho (Trazos Marcados y Nítidos) */
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Ccircle cx='130' cy='70' r='60' stroke='%23d9c3b0' stroke-width='1.5' stroke-opacity='0.35' fill='none' stroke-dasharray='4 2'/%3E%3Ccircle cx='130' cy='70' r='45' stroke='%23d9c3b0' stroke-width='1.0' stroke-opacity='0.30' fill='none'/%3E%3Cpolygon points='130,20 85,95 175,95' stroke='%23d9c3b0' stroke-width='0.8' stroke-opacity='0.25' fill='none'/%3E%3Cpolygon points='130,120 85,45 175,45' stroke='%23d9c3b0' stroke-width='0.8' stroke-opacity='0.25' fill='none'/%3E%3C/svg%3E"),
+        /* Silueta de Montañas con Relleno Naranja Translúcido (Estilo Boticaria) */
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Ccircle cx='60' cy='120' r='20' stroke='%23f97316' stroke-width='0.6' stroke-opacity='0.25' fill='%23f97316' fill-opacity='0.04' stroke-dasharray='2 2'/%3E%3Cpath d='M10,180 L45,130 L75,160 L120,110 L170,180 Z' stroke='%23f97316' stroke-width='1.2' stroke-opacity='0.30' fill='%23f97316' fill-opacity='0.05'/%3E%3Cpath d='M35,145 L65,115 L100,150 L140,110' stroke='%23f97316' stroke-width='0.6' stroke-opacity='0.20' fill='none'/%3E%3C/svg%3E");
+      background-position: right -40px top -40px, left -40px bottom -40px;
+      background-size: 500px 500px, 450px 450px;
       background-repeat: no-repeat;
       background-attachment: fixed;
       color: var(--ink);
@@ -79,7 +80,8 @@
     .legal-note { max-width: 760px; color: var(--muted); font-size: .82rem; }
     h1, h2, .section-heading { font-family: "Cormorant Garamond", Georgia, serif; }
     h1.h2 { color: var(--accent); }
-    .section-heading { color: var(--ink); font-size: 1.35rem; font-weight: 700; }
+    .bg-primary { --bs-primary-rgb: 37, 99, 235; background-color: var(--accent) !important; color: #fff !important; }
+    .section-heading { color: var(--accent); font-size: 1.35rem; font-weight: 700; }
     .text-secondary, .text-muted { color: var(--muted) !important; }
 
     .kpi-card, .panel {
@@ -152,8 +154,8 @@
     .orders-table { min-width: 760px; font-size: .86rem; }
     .inventory-table thead th, .orders-table thead th {
       padding: .9rem .8rem;
-      background: #f7f5f0;
-      color: var(--muted-strong);
+      background: #2563eb;
+      color: #fff;
       font-size: .72rem;
       font-weight: 700;
       white-space: nowrap;
@@ -185,7 +187,7 @@
       font-weight: 700;
       letter-spacing: 0;
     }
-    .badge.bg-danger { --bs-bg-opacity: 1; border-color: #ecd1ce; background-color: #f7e9e7 !important; color: #87423e !important; }
+    .badge.bg-danger { --bs-bg-opacity: 1; border-color: #eed5ba; background-color: #f8ead8 !important; color: #80501f !important; }
     .badge.bg-warning { --bs-bg-opacity: 1; border-color: #e7dcc1; background-color: #f4eedf !important; color: #745a27 !important; }
     .badge.bg-success { --bs-bg-opacity: 1; border-color: #d3e1d3; background-color: #e8f0e7 !important; color: #4c694e !important; }
     .badge.bg-secondary { --bs-bg-opacity: 1; border-color: #e0ddd7; background-color: #f0eeea !important; color: #5e6268 !important; }
