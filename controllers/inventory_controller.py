@@ -34,6 +34,37 @@ def _calculate_fill_rate(requested: int, delivered: int) -> Decimal:
     return _to_decimal(delivered) / _to_decimal(requested) * FULL_FILL_RATE
 
 
+def _calculate_inventory_days(stock: Decimal, daily_demand: Decimal) -> Decimal:
+    if daily_demand == ZERO:
+        return Decimal("999")
+    return stock / daily_demand
+
+
+def _validate_manga_price(cost: Decimal, b2b_price: Decimal) -> None:
+    if b2b_price <= cost:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El precio de venta B2B debe ser mayor que el coste de producción",
+        )
+
+
+def _validate_order_quantities(
+    quantity_requested: int,
+    quantity_delivered: int,
+    stock_available: int,
+) -> None:
+    if quantity_delivered > quantity_requested:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La cantidad entregada no puede superar a la solicitada",
+        )
+    if quantity_delivered > stock_available:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Stock insuficiente en almacén para completar la entrega",
+        )
+
+
 def get_db() -> Generator[Session, None, None]:
     db = SessionLocal()
     try:
@@ -71,6 +102,8 @@ async def add_manga(
     manga_data: MangaCreate,
     db: Session = Depends(get_db),
 ) -> MangaInventoryResponse:
+    _validate_manga_price(manga_data.cost, manga_data.price_b2b)
+
     jikan_url = f"https://api.jikan.moe/v4/manga/{manga_data.mal_id}"
     print(f"--- URL SOLICITADA: {jikan_url} ---")
     title = f"Manga #{manga_data.mal_id}"
@@ -156,13 +189,13 @@ def register_order(
     if manga is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="No existe un manga con ese manga_id.",
+            detail="El manga seleccionado no existe en el inventario",
         )
-    if order_data.quantity_delivered > order_data.quantity_requested:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="La cantidad entregada no puede superar la solicitada.",
-        )
+    _validate_order_quantities(
+        order_data.quantity_requested,
+        order_data.quantity_delivered,
+        manga.stock_actual,
+    )
 
     if order_data.quantity_delivered == 0:
         order_status = "Pendiente"
@@ -178,6 +211,7 @@ def register_order(
         quantity_delivered=order_data.quantity_delivered,
         status=order_status,
     )
+    manga.stock_actual -= order_data.quantity_delivered
     db.add(order)
     db.commit()
     db.refresh(order)
@@ -243,7 +277,7 @@ def calcular_metricas_manga(
     demand = _to_decimal(manga.demanda_diaria_promedio)
     stock = _to_decimal(manga.stock_actual)
     lead_time = _to_decimal(manga.lead_time_days)
-    dias_inventario = stock / demand if demand > ZERO else Decimal("999.0")
+    dias_inventario = _calculate_inventory_days(stock, demand)
     rotacion = demand * Decimal("365") / stock if stock > ZERO else ZERO
     safety_stock = int((demand * Decimal("1.5")) * lead_time)
     reorder_point = int(demand * lead_time) + safety_stock
