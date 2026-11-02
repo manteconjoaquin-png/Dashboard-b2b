@@ -20,6 +20,19 @@ from models.schemas import (
 
 router = APIRouter(prefix="/api/inventory", tags=["Inventory"])
 
+ZERO = Decimal("0")
+FULL_FILL_RATE = Decimal("100.0")
+
+
+def _to_decimal(value: int | float | Decimal) -> Decimal:
+    return Decimal(str(value))
+
+
+def _calculate_fill_rate(requested: int, delivered: int) -> Decimal:
+    if requested == 0:
+        return FULL_FILL_RATE
+    return _to_decimal(delivered) / _to_decimal(requested) * FULL_FILL_RATE
+
 
 def get_db() -> Generator[Session, None, None]:
     db = SessionLocal()
@@ -115,8 +128,8 @@ async def add_manga(
         title=title,
         image_url=image_url or manga_data.image_url,
         stock_actual=int(manga_data.stock_actual),
-        cost=Decimal(manga_data.cost),
-        price_b2b=Decimal(manga_data.price_b2b),
+        cost=_to_decimal(manga_data.cost),
+        price_b2b=_to_decimal(manga_data.price_b2b),
         lead_time_days=int(manga_data.lead_time_days),
         demanda_diaria_promedio=float(manga_data.demanda_diaria_promedio),
     )
@@ -131,7 +144,7 @@ async def add_manga(
             detail="Ya existe un manga con ese mal_id.",
         ) from exc
 
-    return _inventory_response(manga, [])
+    return calcular_metricas_manga(manga, [])
 
 
 @router.post("/order", response_model=B2BOrderResponse, status_code=status.HTTP_201_CREATED)
@@ -174,82 +187,71 @@ def register_order(
 @router.get("/dashboard", response_model=DashboardResponse)
 def get_dashboard(db: Session = Depends(get_db)) -> DashboardResponse:
     mangas = db.query(Manga).options(joinedload(Manga.orders)).all()
-    inventory = [_inventory_response(manga, manga.orders) for manga in mangas]
+    inventory: list[MangaInventoryResponse] = []
+    for manga in mangas:
+        inventory.append(calcular_metricas_manga(manga, manga.orders))
+
     orders = (
         db.query(B2BOrder)
         .options(joinedload(B2BOrder.manga))
         .order_by(B2BOrder.created_at.desc())
         .all()
     )
-    order_responses = [
-        DashboardOrderResponse(
-            id=order.id,
-            manga=order.manga.title,
-            cliente=order.client_name,
-            solicitado=order.quantity_requested,
-            entregado=order.quantity_delivered,
-            fecha=order.created_at,
-            unidades_pendientes=order.quantity_requested - order.quantity_delivered,
-            estado=(
-                "Pendiente de Stock"
-                if order.quantity_requested - order.quantity_delivered > 0
-                else "Completado"
-            ),
+    order_responses: list[DashboardOrderResponse] = []
+    for order in orders:
+        pending_units = order.quantity_requested - order.quantity_delivered
+        order_status = "Pendiente de Stock" if pending_units > 0 else "Completado"
+        order_responses.append(
+            DashboardOrderResponse(
+                id=order.id,
+                manga=order.manga.title,
+                cliente=order.client_name,
+                solicitado=order.quantity_requested,
+                entregado=order.quantity_delivered,
+                fecha=order.created_at,
+                unidades_pendientes=pending_units,
+                estado=order_status,
+            )
         )
-        for order in orders
-    ]
-
-    requested_total = sum(
-        (order.quantity_requested for manga in mangas for order in manga.orders),
-        0,
-    )
-    delivered_total = sum(
-        (order.quantity_delivered for manga in mangas for order in manga.orders),
-        0,
-    )
-    global_fill_rate = (
-        Decimal(delivered_total) / Decimal(requested_total) * Decimal("100")
-        if requested_total
-        else Decimal("100.0")
-    )
-
-    summary = DashboardSummary(
-        fill_rate_global=global_fill_rate,
-        total_productos_obsoletos=sum(
-            item.estado_movimiento == "Movimiento Lento" for item in inventory
-        ),
-        total_alertas_reorden=sum(
-            item.estado_movimiento == "Stock Crítico" for item in inventory
-        ),
-    )
+    summary = calcular_resumen_global(mangas, inventory)
     return DashboardResponse(mangas=inventory, summary=summary, orders=order_responses)
 
 
-def _inventory_response(manga: Manga, orders: list[B2BOrder]) -> MangaInventoryResponse:
-    requested = sum(order.quantity_requested for order in orders)
-    delivered = sum(order.quantity_delivered for order in orders)
-    fill_rate = (
-        Decimal(delivered) / Decimal(requested) * Decimal("100")
-        if requested
-        else Decimal("100.0")
-    )
+def determinar_estado_movimiento(
+    stock_actual: int,
+    reorder_point: int,
+    dias_inventario: Decimal,
+) -> str:
+    if stock_actual <= reorder_point:
+        return "Stock Crítico"
+    if dias_inventario > Decimal("90"):
+        return "Movimiento Lento"
+    return "Óptimo"
 
-    demand = Decimal(str(manga.demanda_diaria_promedio))
-    stock = Decimal(manga.stock_actual)
-    lead_time = Decimal(manga.lead_time_days)
-    dias_inventario = stock / demand if demand > 0 else Decimal("999.0")
-    rotacion = (
-        demand * Decimal("365") / stock if stock > 0 else Decimal("0.0")
-    )
+
+def calcular_metricas_manga(
+    manga: Manga,
+    orders: list[B2BOrder],
+) -> MangaInventoryResponse:
+    requested = 0
+    delivered = 0
+    for order in orders:
+        requested += order.quantity_requested
+        delivered += order.quantity_delivered
+
+    fill_rate = _calculate_fill_rate(requested, delivered)
+    demand = _to_decimal(manga.demanda_diaria_promedio)
+    stock = _to_decimal(manga.stock_actual)
+    lead_time = _to_decimal(manga.lead_time_days)
+    dias_inventario = stock / demand if demand > ZERO else Decimal("999.0")
+    rotacion = demand * Decimal("365") / stock if stock > ZERO else ZERO
     safety_stock = int((demand * Decimal("1.5")) * lead_time)
     reorder_point = int(demand * lead_time) + safety_stock
-
-    if manga.stock_actual <= reorder_point:
-        estado_movimiento = "Stock Crítico"
-    elif dias_inventario > Decimal("90"):
-        estado_movimiento = "Movimiento Lento"
-    else:
-        estado_movimiento = "Óptimo"
+    estado_movimiento = determinar_estado_movimiento(
+        manga.stock_actual,
+        reorder_point,
+        dias_inventario,
+    )
 
     return MangaInventoryResponse(
         id=manga.id,
@@ -257,8 +259,8 @@ def _inventory_response(manga: Manga, orders: list[B2BOrder]) -> MangaInventoryR
         title=manga.title,
         image_url=manga.image_url,
         stock_actual=manga.stock_actual,
-        cost=Decimal(str(manga.cost)),
-        price_b2b=Decimal(str(manga.price_b2b)),
+        cost=_to_decimal(manga.cost),
+        price_b2b=_to_decimal(manga.price_b2b),
         lead_time_days=manga.lead_time_days,
         demanda_diaria_promedio=demand,
         rotacion_inventario=rotacion,
@@ -267,4 +269,30 @@ def _inventory_response(manga: Manga, orders: list[B2BOrder]) -> MangaInventoryR
         safety_stock=safety_stock,
         reorder_point=reorder_point,
         estado_movimiento=estado_movimiento,
+    )
+
+
+def calcular_resumen_global(
+    mangas: list[Manga],
+    inventory: list[MangaInventoryResponse],
+) -> DashboardSummary:
+    requested_total = 0
+    delivered_total = 0
+    for manga in mangas:
+        for order in manga.orders:
+            requested_total += order.quantity_requested
+            delivered_total += order.quantity_delivered
+
+    obsolete_products = 0
+    reorder_alerts = 0
+    for item in inventory:
+        if item.estado_movimiento == "Movimiento Lento":
+            obsolete_products += 1
+        if item.estado_movimiento == "Stock Crítico":
+            reorder_alerts += 1
+
+    return DashboardSummary(
+        fill_rate_global=_calculate_fill_rate(requested_total, delivered_total),
+        total_productos_obsoletos=obsolete_products,
+        total_alertas_reorden=reorder_alerts,
     )
